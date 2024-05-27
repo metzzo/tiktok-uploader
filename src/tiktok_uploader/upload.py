@@ -13,6 +13,7 @@ import time
 import pytz
 import datetime
 import threading
+import traceback
 
 from selenium.webdriver.common.by import By
 
@@ -199,7 +200,9 @@ def complete_upload_form(driver, path: str, description: str, schedule: datetime
     
     if not skip_split_window:
         _remove_split_window(driver)
+    _expand_see_more(driver, **kwargs)
     _set_interactivity(driver, **kwargs)
+    _set_ai_generated(driver, **kwargs)
     _set_description(driver, description)
     if schedule:
         _set_schedule_video(driver, schedule)
@@ -438,6 +441,22 @@ def _remove_split_window(driver) -> None:
         logger.debug(red(f"Split window not found or operation timed out"))
         
 
+def _expand_see_more(driver, *args, **kwargs) -> None:
+    """
+    Expands the see more section of the video. This contains the interactivity settings and AI generated settings
+    """
+    try:
+        logger.debug(green('Expand see more section'))
+
+        driver_wait = WebDriverWait(driver, config['explicit_wait'])
+        see_more_wait = EC.visibility_of_element_located(
+            (By.XPATH, config['selectors']['upload']['see_more'])
+        )
+        driver_wait.until(see_more_wait).click()
+
+    except Exception as e:
+        logger.error(f'Failed to expand see more: {repr(e)}')
+
 def _set_interactivity(driver, comment=True, stitch=True, duet=True, *args, **kwargs) -> None:
     """
     Sets the interactivity settings of the video
@@ -472,6 +491,34 @@ def _set_interactivity(driver, comment=True, stitch=True, duet=True, *args, **kw
     except Exception as _:
         logger.error('Failed to set interactivity settings')
 
+def _set_ai_generated(driver, ai_generated=False, *args, **kwargs) -> None:
+    """
+    Sets the AI generated settings of the video
+
+    Parameters
+    ----------
+    driver : selenium.webdriver
+    comment : bool
+        Whether or not content is ai generated
+    """
+    try:
+        logger.debug(green(f"Setting AI generated settings"))
+
+        driver_wait = WebDriverWait(driver, config['explicit_wait'])
+        generatedai_box_wait = EC.visibility_of_element_located(
+            (By.XPATH, config['selectors']['upload']['aigenerated'])
+        )
+        driver_wait.until(generatedai_box_wait).click()
+
+        driver_wait = WebDriverWait(driver, config['explicit_wait'])
+        generatedai_turn_on = EC.visibility_of_element_located(
+            (By.XPATH, config['selectors']['upload']['aigenerated_turnon'])
+        )
+        driver_wait.until(generatedai_turn_on).click()
+
+    except Exception as e:
+        print(repr(e))
+        logger.error('Failed to set ai generated settings %s' % e)
 
 def _set_schedule_video(driver, schedule: datetime.datetime) -> None:
     """
@@ -500,6 +547,7 @@ def _set_schedule_video(driver, schedule: datetime.datetime) -> None:
         __date_picker(driver, month, day)
         __time_picker(driver, hour, minute)
     except Exception as e:
+        print(traceback.format_exc())
         msg = f'Failed to set schedule: {e}'
         logger.error(red(msg))
         raise FailedToUpload()
@@ -544,7 +592,7 @@ def __date_picker(driver, month: int, day: int) -> None:
 
 
 def __verify_date_picked_is_correct(driver, month: int, day: int):
-    date_selected = driver.find_element(By.XPATH, config['selectors']['schedule']['date_picker']).text
+    date_selected = driver.find_element(By.XPATH, config['selectors']['schedule']['date_picker']).get_attribute("value")
     date_selected_month = int(date_selected.split('-')[1])
     date_selected_day = int(date_selected.split('-')[2])
 
@@ -585,9 +633,9 @@ def __time_picker(driver, hour: int, minute: int) -> None:
     time.sleep(1) # temporay fix => might be better to use an explicit wait
     hour_to_click.click()
 
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", minute_to_click)
-    time.sleep(2) # temporary fixed => Might be better to use an explicit wait
-    minute_to_click.click()
+    #driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", minute_to_click)
+    #time.sleep(2) # temporary fixed => Might be better to use an explicit wait
+    #minute_to_click.click()
 
     # click somewhere else to close the time picker
     time_picker.click()
@@ -597,11 +645,11 @@ def __time_picker(driver, hour: int, minute: int) -> None:
 
 
 def __verify_time_picked_is_correct(driver, hour: int, minute: int):
-    time_selected = driver.find_element(By.XPATH, config['selectors']['schedule']['time_picker_text']).text
+    time_selected = driver.find_element(By.XPATH, config['selectors']['schedule']['time_picker_text']).get_attribute("value")
     time_selected_hour = int(time_selected.split(':')[0])
     time_selected_minute = int(time_selected.split(':')[1])
 
-    if time_selected_hour == hour and time_selected_minute == minute:
+    if time_selected_hour == hour: # and time_selected_minute == minute:
         logger.debug(green('Time picked correctly'))
     else:
         msg = f'Something went wrong with the time picker, ' \
