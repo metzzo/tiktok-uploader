@@ -59,7 +59,7 @@ user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 	aigenerated_turnon = "//button[.='Turn on']"
 
 	post = "//button[contains(@class, 'TUXButton--primary')]"
-	post_confirmation = "//div[contains(text(), 'Your video has been uploaded')]"
+	post_confirmation = "//div[contains(text(), 'Your video has been uploaded') or contains(text(), 'Upload another video')]"
 
 
 	[selectors.schedule]
